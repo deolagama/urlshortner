@@ -16,6 +16,7 @@ limiter = Limiter(
 limiter.init_app(app)
 
 already_initialized = False
+
 @app.before_request
 def init_once():
     global already_initialized
@@ -28,29 +29,21 @@ def init_once():
 def index():
     if request.method == 'POST':
         original_url = request.form['url']
-        new_url = URL(original=original_url, short="")  # Temporary value for short
+        new_url = URL(original=original_url, short="")
         db.session.add(new_url)
-        db.session.flush()  # This assigns new_url.id
-
-        # Now generate and set the short URL
+        db.session.commit()
         new_url.short = encode_base62(new_url.id)
-
-        db.session.commit()  # Commit with short filled in
-
+        db.session.commit()
         short_link = request.host_url + new_url.short
         return render_template("index.html", short_url=short_link)
-
     return render_template("index.html")
-
 
 @app.route('/<short>')
 def redirect_short(short):
     url = URL.query.filter_by(short=short).first_or_404()
-    
     click = Click(url_id=url.id, ip_address=request.remote_addr)
     db.session.add(click)
     db.session.commit()
-
     return redirect(url.original)
 
 if __name__ == "__main__":
